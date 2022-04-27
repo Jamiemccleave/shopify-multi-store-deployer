@@ -25,7 +25,7 @@ git config --global user.email "$INPUT_USER_EMAIL"
 set -o xtrace
 
 git fetch origin $INPUT_FROM_BRANCH
-(git checkout $INPUT_FROM_BRANCH && git pull origin $INPUT_FROM_BRANCH )||git checkout -b $INPUT_FROM_BRANCH origin/$INPUT_FROM_BRANCH
+(git checkout $INPUT_FROM_BRANCH && git pull origin $INPUT_FROM_BRANCH && git push origin $INPUT_FROM_BRANCH)||git checkout -b $INPUT_FROM_BRANCH origin/$INPUT_FROM_BRANCH
 
 #git log -1
 git rev-parse --short HEAD
