@@ -30,7 +30,7 @@ git fetch origin $INPUT_FROM_BRANCH
 git log -1
 
 git fetch origin $INPUT_TO_BRANCH
-(git checkout $INPUT_TO_BRANCH && git pull origin INPUT_TO_BRANCH)||git checkout -b $INPUT_TO_BRANCH origin/$INPUT_TO_BRANCH
+(git checkout $INPUT_TO_BRANCH && git pull origin $INPUT_TO_BRANCH)||git checkout -b $INPUT_TO_BRANCH origin/$INPUT_TO_BRANCH
 
 git log -1
 
