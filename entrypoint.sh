@@ -53,10 +53,10 @@ set -o xtrace
 git merge --no-edit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
 #git merge -m "GitHub Action: Merge Develop into France" develop
 
-git checkout $INPUT_TO_BRANCH config/settings_schema.json
-git checkout $INPUT_TO_BRANCH templates/
+git reset HEAD config/settings_schema.json
+git reset HEAD templates/
 
-git commit -am  "GitHub Action - message"
+#git commit -am  "GitHub Action - message"
 #git add config/settings_schema.json
 #git add templates
 
