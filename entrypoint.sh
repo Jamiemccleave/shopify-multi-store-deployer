@@ -59,7 +59,7 @@ git checkout origin/develop-france~1 templates/
 
 git commit -am  "GitHub Action - message"
 git add config/settings_schema.json
-git add templates
+git add templates/
 
 # Push the branch
 git push --force origin $INPUT_TO_BRANCH
