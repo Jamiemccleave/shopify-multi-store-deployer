@@ -28,6 +28,7 @@ git fetch origin $INPUT_FROM_BRANCH
 (git checkout $INPUT_FROM_BRANCH && git pull origin $INPUT_FROM_BRANCH )||git checkout -b $INPUT_FROM_BRANCH origin/$INPUT_FROM_BRANCH
 
 #git log -1
+git rev-parse --short HEAD
 
 git fetch origin $INPUT_TO_BRANCH
 (git checkout $INPUT_TO_BRANCH && git pull origin $INPUT_TO_BRANCH)||git checkout -b $INPUT_TO_BRANCH origin/$INPUT_TO_BRANCH
@@ -56,9 +57,9 @@ git merge --no-edit --strategy-option theirs --allow-unrelated-histories $INPUT_
 git checkout origin/develop-france~1 config/settings_schema.json
 git checkout origin/develop-france~1 templates/
 
-#git commit -am  "GitHub Action - message"
-#git add config/settings_schema.json
-#git add templates
+git commit -am  "GitHub Action - message"
+git add config/settings_schema.json
+git add templates
 
 # Push the branch
 git push --force origin $INPUT_TO_BRANCH
