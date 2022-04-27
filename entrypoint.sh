@@ -56,6 +56,7 @@ git merge --no-edit --strategy-option theirs --allow-unrelated-histories $INPUT_
 git checkout $INPUT_TO_BRANCH config/settings_schema.json
 git checkout $INPUT_TO_BRANCH templates/*
 
+git commit -am  "GitHub Action - message"
 #git add config/settings_schema.json
 #git add templates
 
