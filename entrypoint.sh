@@ -50,7 +50,7 @@ set -o xtrace
 git status 
 
 # Do the merge
-#git merge --no-edit --allow-unrelated-histories $INPUT_FROM_BRANCH
+git merge --no-edit --allow-unrelated-histories $INPUT_FROM_BRANCH
 #git merge -m "GitHub Action: Merge Develop into France" develop
 # Push the branch
-#git push --force origin $INPUT_TO_BRANCH
+git push --force origin $INPUT_TO_BRANCH
