@@ -28,12 +28,13 @@ git fetch origin $INPUT_FROM_BRANCH
 (git checkout $INPUT_FROM_BRANCH && git pull origin $INPUT_FROM_BRANCH && git push origin $INPUT_FROM_BRANCH)||git checkout -b $INPUT_FROM_BRANCH origin/$INPUT_FROM_BRANCH
 
 #git log -1
-git rev-parse --short HEAD
 
 git fetch origin $INPUT_TO_BRANCH
 (git checkout $INPUT_TO_BRANCH && git pull origin $INPUT_TO_BRANCH)||git checkout -b $INPUT_TO_BRANCH origin/$INPUT_TO_BRANCH
 
 #git log -1
+git rev-parse --short HEAD
+hash=$(git rev-parse --short HEAD)
 
 if git merge-base --is-ancestor $INPUT_FROM_BRANCH $INPUT_TO_BRANCH; then
   echo "No merge is necessary"
@@ -54,8 +55,8 @@ set -o xtrace
 git merge --no-edit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
 #git merge -m "GitHub Action: Merge Develop into France" develop
 
-git checkout origin/develop-france  config/settings_schema.json
-git checkout origin/develop-france  templates/
+git checkout $hash  config/settings_schema.json
+git checkout $hash  templates/
 
 git commit -am  "GitHub Action - message"
 git add config/settings_schema.json
