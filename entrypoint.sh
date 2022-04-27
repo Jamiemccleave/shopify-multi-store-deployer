@@ -42,8 +42,11 @@ echo "  into the '$INPUT_TO_BRANCH' branch ($(git log -1 --pretty=%H $INPUT_TO_B
 echo
 set -o xtrace
 
-# Do the merge
-git merge --no-edit --allow-unrelated-histories $INPUT_FROM_BRANCH
+# status 
+git status 
 
+# Do the merge
+#git merge --no-edit --allow-unrelated-histories $INPUT_FROM_BRANCH
+#git merge -m "GitHub Action: Merge Develop into France" develop
 # Push the branch
-git push --force origin $INPUT_TO_BRANCH
+#git push --force origin $INPUT_TO_BRANCH
