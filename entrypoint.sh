@@ -54,7 +54,7 @@ git merge --no-edit --strategy-option theirs --allow-unrelated-histories $INPUT_
 #git merge -m "GitHub Action: Merge Develop into France" develop
 
 git checkout $INPUT_TO_BRANCH config/settings_schema.json
-git checkout $INPUT_TO_BRANCH templates/*
+git checkout $INPUT_TO_BRANCH templates/
 
 git commit -am  "GitHub Action - message"
 #git add config/settings_schema.json
