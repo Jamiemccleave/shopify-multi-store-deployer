@@ -52,14 +52,14 @@ set -o xtrace
 #git status 
 
 # Do the merge
-git merge --no-edit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
+git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
 #git merge -m "GitHub Action: Merge Develop into France" develop
 
-git checkout $hash  config/settings_schema.json
+git checkout $hash  config/
 git checkout $hash  templates/
 
-git commit -am  "GitHub Action - message"
-git add config/settings_schema.json
+git commit -am  "GitHub Action: Merge Develop into France"
+git add config/
 git add templates/
 
 # Push the branch
