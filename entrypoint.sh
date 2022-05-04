@@ -58,6 +58,15 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 git checkout $hash  config/
 git checkout $hash  templates/
 
+if [ -z "$(git status --porcelain)" ]; 
+
+  echo "No merge / reset is necessary"
+  exit 0
+  
+fi;
+  
+
+
 git commit -am  "GitHub Action: Merge Develop into France"
 git add config/
 git add templates/
