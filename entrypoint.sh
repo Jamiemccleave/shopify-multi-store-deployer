@@ -67,8 +67,7 @@ else
   git commit -am  "GitHub Action: Merge Develop into France"
   git add config/
   git add templates/
-  
-  exit
+ 
 fi
   
 
