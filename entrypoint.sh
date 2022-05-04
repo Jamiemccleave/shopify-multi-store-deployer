@@ -62,16 +62,18 @@ if [[ -z $(git status -s) ]]; then
   echo "tree is clean"
 
 else
-  echo "tree is dirty, please commit changes before running this"
-    
+  echo "tree is dirty, commiting changes"
+  
+  git commit -am  "GitHub Action: Merge Develop into France"
+  git add config/
+  git add templates/
+  
   exit
 fi
   
 
 
-#git commit -am  "GitHub Action: Merge Develop into France"
-#git add config/
-#git add templates/
+
 
 # Push the branch
 git push --force origin $INPUT_TO_BRANCH
