@@ -58,13 +58,12 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 git checkout $hash  config/
 git checkout $hash  templates/
 
-if [[ -z $(git status -s) ]]
-then
+if [[ -z $(git status -s) ]]; then
   echo "tree is clean"
-  git status
+
 else
   echo "tree is dirty, please commit changes before running this"
-    git status
+    
   exit
 fi
   
