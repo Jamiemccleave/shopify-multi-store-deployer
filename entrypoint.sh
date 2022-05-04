@@ -69,9 +69,9 @@ fi
   
 
 
-git commit -am  "GitHub Action: Merge Develop into France"
-git add config/
-git add templates/
+#git commit -am  "GitHub Action: Merge Develop into France"
+#git add config/
+#git add templates/
 
 # Push the branch
 git push --force origin $INPUT_TO_BRANCH
