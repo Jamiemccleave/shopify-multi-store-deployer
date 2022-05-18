@@ -1,6 +1,6 @@
 name: 'Up merge'
 description: 'Automatically up merge changes from one branch to another'
-author: 'Manuel Christlieb'
+author: ''
 branding:
   icon: 'git-merge'
   color: 'orange'
