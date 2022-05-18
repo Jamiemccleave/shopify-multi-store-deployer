@@ -1,6 +1,4 @@
-# Upmerge GitHub Action
-
-This action is heavily inspired by [robotology/gh-action-nigthly-merge](https://github.com/robotology/gh-action-nightly-merge).
+# Merge GitHub Action
 
 Automatically merge one branch into another.
 
