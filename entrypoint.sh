@@ -55,7 +55,7 @@ set -o xtrace
 git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
 #git merge -m "GitHub Action: Merge Develop into France" develop
 
-git checkout $hash  config/
+git checkout $hash  config/settings_data.json
 git checkout $hash  templates/
 
 if [[ -z $(git status -s) ]]; then
@@ -65,7 +65,7 @@ else
   echo "tree is dirty, commiting changes"
   
   git commit -am  "GitHub Action: Merge Develop into France"
-  git add config/
+  git add config/settings_data.json
   git add templates/
  
 fi
