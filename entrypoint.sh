@@ -6,7 +6,7 @@ echo
 echo "  'Upmerge Action' is using the following input:"
 echo "    - from_branch = '$INPUT_FROM_BRANCH'"
 echo "    - to_branch = '$INPUT_TO_BRANCH'"
-echo "    - user_name = 'GitHub Action : EN>FR'"
+echo "    - user_name = 'GitHub Action : Merge'"
 echo "    - user_email = '<>'"
 echo "    - push_token = $INPUT_PUSH_TOKEN = ${!INPUT_PUSH_TOKEN}"
 echo
