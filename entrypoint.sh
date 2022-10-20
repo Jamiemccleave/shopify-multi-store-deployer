@@ -64,7 +64,7 @@ if [[ -z $(git status -s) ]]; then
 else
   echo "tree is dirty, commiting changes"
   
-  git commit -am  "GitHub Action: Merge Develop into France"
+  git commit -am  "GitHub Action: Merge "
   git add config/settings_data.json
   git add templates/
  
