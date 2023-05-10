@@ -57,7 +57,8 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 git checkout $hash config/settings_data.json
 #git checkout $hash templates/
 
-find templates/ -type f -name "*.json" -exec git checkout $hash -- '{}' \;
+#find templates/ -type f -name "*.json" -exec git checkout $hash -- '{}' \;
+git ls-tree -r --name-only $hash templates/ | grep '\.json$' | xargs -I{} git checkout $hash -- '{}'
 
 git status
 
