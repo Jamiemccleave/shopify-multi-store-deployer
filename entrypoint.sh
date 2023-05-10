@@ -56,7 +56,7 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 # Checkout specific files from the hash
 git checkout $hash config/settings_data.json
 git checkout $hash templates/\*.liquid
-git checkout $hash section/\*.json
+git checkout $hash sections/\*.json
 
 echo "Status Check: Post Checkout"
 git status
@@ -71,7 +71,7 @@ else
   git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
   git add config/settings_data.json
   git add templates/\*.liquid
-  git add section/\*.json
+  git add sections/\*.json
 
   echo "Status Check: Post Push "
 
