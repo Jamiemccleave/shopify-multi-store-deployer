@@ -59,7 +59,7 @@ git checkout $hash config/settings_data.json
 
 find templates/ -type f -name "*.json" -print0 | xargs -0 git checkout $hash
 
-git log -1
+git status
 
 exit 0
 # Check if there are changes to commit
