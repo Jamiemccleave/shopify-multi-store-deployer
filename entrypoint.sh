@@ -60,9 +60,10 @@ git checkout $hash templates/
 #find templates/ -type f -name "*.json" -exec git checkout $hash -- '{}' \;
 #git ls-tree -r --name-only $hash templates/ | grep '\.json$' | xargs -I{} git checkout $hash -- '{}'
 
+echo "Status Check: Post Checkout"
 git status
 
-exit 0
+
 # Check if there are changes to commit
 if [[ -z $(git status -s) ]]; then
   echo "tree is clean"
@@ -73,10 +74,11 @@ else
   git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
   git add config/settings_data.json
   git add -r templates/*.liquid
-
-
+  
+  echo "Status Check: Post Push "
+  
   # Push the branch
-  git push --force origin $INPUT_TO_BRANCH
+  #git push --force origin $INPUT_TO_BRANCH
 fi
 
 
