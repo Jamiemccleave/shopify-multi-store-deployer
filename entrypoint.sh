@@ -73,12 +73,12 @@ else
   echo "tree is dirty, committing changes"
   git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
   git add config/settings_data.json
-  git add -r templates/*.liquid
+  git add templates/\*.liquid
   
   echo "Status Check: Post Push "
   
   # Push the branch
-  #git push --force origin $INPUT_TO_BRANCH
+  git push --force origin $INPUT_TO_BRANCH
 fi
 
 
