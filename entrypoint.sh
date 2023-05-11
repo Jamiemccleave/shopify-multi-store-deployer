@@ -55,7 +55,7 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 
 # Checkout specific files from the hash
 git checkout $hash config/settings_data.json
-git checkout $hash templates/\*.liquid
+git checkout $hash templates/\*.json
 git checkout $hash sections/\*.json
 
 echo "Status Check: Post Checkout"
