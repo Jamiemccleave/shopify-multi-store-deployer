@@ -70,7 +70,7 @@ else
   echo "tree is dirty, committing changes"
   git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
   git add config/settings_data.json
-  git add templates/\*.liquid
+  git add templates/\*.json
   git add sections/\*.json
 
   echo "Status Check: Post Push "
