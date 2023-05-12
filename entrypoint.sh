@@ -54,7 +54,7 @@ set -o xtrace
 git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
 
 # Checkout specific files from the hash
-git checkout $hash config/settings_data.json
+git checkout $hash config/\*.json
 git checkout $hash templates/\*.json
 git checkout $hash sections/\*.json
 
@@ -69,7 +69,7 @@ if [[ -z $(git status -s) ]]; then
 else
   echo "tree is dirty, committing changes"
   git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
-  git add config/settings_data.json
+  git add config/\*.json
   git add templates/\*.json
   git add sections/\*.json
 
