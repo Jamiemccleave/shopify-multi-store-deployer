@@ -57,6 +57,7 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 git checkout $hash config/\*.json
 git checkout $hash templates/\*.json
 git checkout $hash sections/\*.json
+git checkout $hash locales/\*.json
 
 echo "Status Check: Post Checkout"
 git status
@@ -72,6 +73,7 @@ else
   git add config/\*.json
   git add templates/\*.json
   git add sections/\*.json
+  git add locales/\*.json
 
   echo "Status Check: Post Push "
 
