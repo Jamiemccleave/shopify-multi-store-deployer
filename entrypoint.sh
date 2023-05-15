@@ -4,10 +4,10 @@ set -e
 
 # Display input information
 echo
-echo "  'Upmerge Action' is using the following input:"
+echo "  'Multi Store Merge Bot' is using the following input:"
 echo "    - from_branch = '$INPUT_FROM_BRANCH'"
 echo "    - to_branch = '$INPUT_TO_BRANCH'"
-echo "    - user_name = 'GitHub Action : Merge'"
+echo "    - user_name = 'GitHub Action : Multi Store Merge Bot'"
 echo "    - user_email = '<>'"
 echo "    - push_token = $INPUT_PUSH_TOKEN = ${!INPUT_PUSH_TOKEN}"
 echo
@@ -49,7 +49,7 @@ fi
 
 set +o xtrace
 echo
-echo "  'Upmerge Action' is trying to merge the '${input_from_branch}' branch ($(git log -1 --pretty=%H ${input_from_branch}))"
+echo "  'Multi Store Merge Action' is trying to merge the '${input_from_branch}' branch ($(git log -1 --pretty=%H ${input_from_branch}))"
 echo "  into the '${input_to_branch}' branch ($(git log -1 --pretty=%H ${input_to_branch}))"
 echo
 set -o xtrace
