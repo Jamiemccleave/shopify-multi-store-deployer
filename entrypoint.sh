@@ -70,10 +70,10 @@ if [[ -z $(git status -s) ]]; then
 else
   echo "tree is dirty, committing changes"
   git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
-  git add config/\*.json
-  git add templates/\*.json
-  git add sections/\*.json
-  git add locales/\*.json
+  git add config/\*.json 2>/dev/null || true
+  git add templates/\*.json 2>/dev/null || true
+  git add sections/\*.json 2>/dev/null || true
+  git add locales/\*.json 2>/dev/null || true
 
   echo "Status Check: Post Push "
 
