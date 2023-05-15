@@ -54,10 +54,10 @@ set -o xtrace
 git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
 
 # Checkout specific files from the hash
-git checkout $hash config/\*.json
-git checkout $hash templates/\*.json
-git checkout $hash sections/\*.json
-git checkout $hash locales/\*.json
+git checkout $hash config/\*.json 2>/dev/null || true
+git checkout $hash templates/\*.json 2>/dev/null || true
+git checkout $hash sections/\*.json 2>/dev/null || true
+git checkout $hash locales/\*.json 2>/dev/null || true
 
 echo "Status Check: Post Checkout"
 git status
