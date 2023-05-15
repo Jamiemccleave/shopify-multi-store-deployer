@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
@@ -11,6 +11,10 @@ echo "    - user_name = 'GitHub Action : Merge'"
 echo "    - user_email = '<>'"
 echo "    - push_token = $INPUT_PUSH_TOKEN = ${!INPUT_PUSH_TOKEN}"
 echo
+
+# Store input branch names as lowercase variables
+input_from_branch="$INPUT_FROM_BRANCH"
+input_to_branch="$INPUT_TO_BRANCH"
 
 # Check if push token is set
 if [[ -z "${!INPUT_PUSH_TOKEN}" ]]; then
@@ -27,37 +31,37 @@ git config --global user.email "$INPUT_USER_EMAIL"
 set -o xtrace
 
 # Fetch and checkout from_branch
-git fetch origin $INPUT_FROM_BRANCH
-git checkout $INPUT_FROM_BRANCH && git pull origin $INPUT_FROM_BRANCH || git checkout -b $INPUT_FROM_BRANCH origin/$INPUT_FROM_BRANCH
+git fetch origin ${input_from_branch}
+git checkout ${input_from_branch} && git pull origin ${input_from_branch} || git checkout -b ${input_from_branch} origin/${input_from_branch}
 
 # Fetch and checkout to_branch
-git fetch origin $INPUT_TO_BRANCH
-git checkout $INPUT_TO_BRANCH && git pull origin $INPUT_TO_BRANCH || git checkout -b $INPUT_TO_BRANCH origin/$INPUT_TO_BRANCH
+git fetch origin ${input_to_branch}
+git checkout ${input_to_branch} && git pull origin ${input_to_branch} || git checkout -b ${input_to_branch} origin/${input_to_branch}
 
 # Get the current commit hash
-hash=$(git rev-parse --short HEAD)
+commit_hash=$(git rev-parse --short HEAD)
 
 # Check if merge is necessary
-if git merge-base --is-ancestor $INPUT_FROM_BRANCH $INPUT_TO_BRANCH; then
+if git merge-base --is-ancestor ${input_from_branch} ${input_to_branch}; then
   echo "No merge is necessary"
   exit 0
 fi
 
 set +o xtrace
 echo
-echo "  'Upmerge Action' is trying to merge the '$INPUT_FROM_BRANCH' branch ($(git log -1 --pretty=%H $INPUT_FROM_BRANCH))"
-echo "  into the '$INPUT_TO_BRANCH' branch ($(git log -1 --pretty=%H $INPUT_TO_BRANCH))"
+echo "  'Upmerge Action' is trying to merge the '${input_from_branch}' branch ($(git log -1 --pretty=%H ${input_from_branch}))"
+echo "  into the '${input_to_branch}' branch ($(git log -1 --pretty=%H ${input_to_branch}))"
 echo
 set -o xtrace
 
 # Perform the merge
-git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories $INPUT_FROM_BRANCH
+git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories ${input_from_branch}
 
-# Checkout specific files from the hash
-git checkout $hash config/\*.json 2>/dev/null || true
-git checkout $hash templates/\*.json 2>/dev/null || true
-git checkout $hash sections/\*.json 2>/dev/null || true
-git checkout $hash locales/\*.json 2>/dev/null || true
+# Checkout specific files from the commit_hash, ignoring errors
+git checkout ${commit_hash} config/\*.json 2>/dev/null || true
+git checkout ${commit_hash} templates/\*.json 2>/dev/null || true
+git checkout ${commit_hash} sections/\*.json 2>/dev/null || true
+git checkout ${commit_hash} locales/\*.json 2>/dev/null || true
 
 echo "Status Check: Post Checkout"
 git status
@@ -69,16 +73,20 @@ if [[ -z $(git status -s) ]]; then
   exit 0
 else
   echo "tree is dirty, committing changes"
-  git commit -m "GitHub Action: Merge ${from_branch} into ${to_branch}"
+  
+  # Add modified files, ignoring errors
   git add config/\*.json 2>/dev/null || true
   git add templates/\*.json 2>/dev/null || true
   git add sections/\*.json 2>/dev/null || true
   git add locales/\*.json 2>/dev/null || true
+  
+  # Commit the changes with the correct branch names
+  git commit -m "GitHub Action: Merge ${input_from_branch} into ${input_to_branch}"
 
   echo "Status Check: Post Push "
 
   # Push the branch
-  git push --force origin $INPUT_TO_BRANCH
+  git push --force origin ${input_to_branch}
 fi
 
 
