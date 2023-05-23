@@ -25,6 +25,10 @@ inputs:
     description: 'Environment variable containing the token to use for push'
     required: false
     default: 'GITHUB_TOKEN'
+  local_settings_data: 
+    description: 'Keep config local or global'
+    required: false
+    default: 'false'
 runs:
   using: 'docker'
   image: 'Dockerfile'
