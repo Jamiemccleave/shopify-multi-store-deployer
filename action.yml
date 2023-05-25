@@ -1,4 +1,4 @@
-name: "Multi Store Merge GitHub Action for Shopify"
+name: "Multi Store Merge GitHub Action for Shopify 2.0"
 description: "GitHub Action designed to automate merging changes between branches, with a focus on Shopify theme configuration files."
 author: "Jamie McCleave"
 branding:
