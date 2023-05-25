@@ -10,13 +10,11 @@ echo "    - to_branch = '$INPUT_TO_BRANCH'"
 echo "    - user_name = 'GitHub Action : Multi Store Merge Bot'"
 echo "    - user_email = '<>'"
 echo "    - push_token = $INPUT_PUSH_TOKEN = ${!INPUT_PUSH_TOKEN}"
-echo "    - local_settings_schema = $LOCAL_SETTINGS_SCHEMA"
 echo
 
 # Storing input branch names and settings data as variables
 input_from_branch="$INPUT_FROM_BRANCH"
 input_to_branch="$INPUT_TO_BRANCH"
-local_settings_schema="$LOCAL_SETTINGS_SCHEMA"
 
 # Checking if push token environment variable is set, if not then script is terminated
 if [[ -z "${!INPUT_PUSH_TOKEN}" ]]; then
@@ -63,15 +61,7 @@ git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histo
 git checkout ${commit_hash} templates/\*.json 2>/dev/null || true
 git checkout ${commit_hash} sections/\*.json 2>/dev/null || true
 git checkout ${commit_hash} locales/\*.json 2>/dev/null || true
-
-# If $local_settings_data is true, checkout all files in config, else checkout only settings_data.json
-if [[ "${local_settings_schema}" == true ]]; then
-  git checkout ${commit_hash} config/\*.json 2>/dev/null || true
-  echo "Checkout: config/*json"
-else
-  git checkout ${commit_hash} config/settings_data.json 2>/dev/null || true
-  echo "Checkout: config/settings_data.json"
-fi
+git checkout ${commit_hash} config/settings_data.json 2>/dev/null || true
 
 echo "Status Check: Post Checkout"
 git status
@@ -88,13 +78,7 @@ else
   git add templates/\*.json 2>/dev/null || true
   git add sections/\*.json 2>/dev/null || true
   git add locales/\*.json 2>/dev/null || true
-
-  # If $local_settings_schema is true, add all files in config, else add only settings_data.json
-  if [[ "${local_settings_schema}" == true ]]; then
-    git add config/\*.json 2>/dev/null || true
-  else
-    git add config/settings_data.json 2>/dev/null || true
-  fi
+  git add config/settings_data.json 2>/dev/null || true
 
   # Committing the changes with a message containing the branch names
   git commit -m "GitHub Action: Merge ${input_from_branch} into ${input_to_branch}"

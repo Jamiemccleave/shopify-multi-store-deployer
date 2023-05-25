@@ -1,36 +1,32 @@
-name: 'Up merge'
-description: 'Automatically up merge changes from one branch to another'
-author: 'Manuel Christlieb'
+name: "Multi Store Merge GitHub Action for Shopify"
+description: "GitHub Action designed to automate merging changes between branches, with a focus on Shopify theme configuration files."
+author: "Jamie McCleave"
 branding:
-  icon: 'git-merge'
-  color: 'orange'
+  icon: "git-merge"
+  color: "orange"
 inputs:
   from_branch:
-    description: 'Name of the branch to merge from'
+    description: "Name of the branch to merge from"
     required: false
-    default: 'master'
+    default: "master"
   to_branch:
-    description: 'Name of the branch to merge to'
+    description: "Name of the branch to merge to"
     required: false
-    default: 'develop'
+    default: "develop"
   user_name:
-    description: 'User name for git commits'
+    description: "User name for git commits"
     required: false
-    default: 'GitHub Upmerge Action'
+    default: "GitHub Upmerge Action"
   user_email:
-    description: 'User email for git commits'
+    description: "User email for git commits"
     required: false
-    default: 'actions@github.com'
+    default: "actions@github.com"
   push_token:
-    description: 'Environment variable containing the token to use for push'
+    description: "Environment variable containing the token to use for push"
     required: false
-    default: 'GITHUB_TOKEN'
-  local_settings_data: 
-    description: 'Keep config local or global'
-    required: false
-    default: 'false'
+    default: "GITHUB_TOKEN"
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
+  using: "docker"
+  image: "Dockerfile"
   args:
     - ${{ inputs.myInput }}
