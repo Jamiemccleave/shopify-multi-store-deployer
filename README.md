@@ -20,21 +20,17 @@ jobs:
   merge:
     runs-on: ubuntu-latest
 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Multi Store Merge
-        uses: Jamiemccleave/shopify-multi-store-deployer@2.0
+      - name: Shopify Multi Store Deployer
+        uses: jamiemccleave/shopify-multi-store-deployer@v2.0
         with:
-          from_branch: "from-branch-name"
-          to_branch: "to-branch-name"
-          user_name: "GitHub Action : Multi Store Merge Bot"
-          user_email: "bot@email.com"
-          push_token: "PUSH_TOKEN"
-          local_settings_data: true
+          from_branch: "master"
+          to_branch: "stores/store-name/master-region"
         env:
-          PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
