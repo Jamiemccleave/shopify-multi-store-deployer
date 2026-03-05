@@ -1,97 +1,223 @@
 #!/usr/bin/env bash
-
-# If any command in the script fails (returns non-zero exit status), the script will terminate immediately
 set -e
 
-# Displaying input information
-echo
-echo "  'Multi Store Merge Bot' is using the following input:"
-echo "    - from_branch = '$INPUT_FROM_BRANCH'"
-echo "    - to_branch = '$INPUT_TO_BRANCH'"
-echo "    - user_name = 'GitHub Action : Multi Store Merge Bot'"
-echo "    - user_email = '<>'"
-echo "    - push_token = $INPUT_PUSH_TOKEN = ${!INPUT_PUSH_TOKEN}"
-echo
+# ─────────────────────────────────────────────────────────
+# Inputs
+# ─────────────────────────────────────────────────────────
+input_from_branch="${INPUT_FROM_BRANCH:-master}"
+input_to_branch="${INPUT_TO_BRANCH:-develop}"
+input_user_name="${INPUT_USER_NAME:-GitHub Action : Multi Store Merge Bot}"
+input_user_email="${INPUT_USER_EMAIL:-actions@github.com}"
+input_push_token_var="${INPUT_PUSH_TOKEN:-GITHUB_TOKEN}"
+input_local_settings_data="${INPUT_LOCAL_SETTINGS_DATA:-false}"
+input_preserve_locales="${INPUT_PRESERVE_LOCALES:-false}"
+input_config_source_branch="${INPUT_CONFIG_SOURCE_BRANCH:-}"
 
-# Setting the input branches and settings data as variables for later use
-input_from_branch="$INPUT_FROM_BRANCH"
-input_to_branch="$INPUT_TO_BRANCH"
+# Config source defaults to to_branch if not specified (preserves existing behaviour)
+if [[ -z "${input_config_source_branch}" ]]; then
+  input_config_source_branch="${input_to_branch}"
+fi
 
-# Check if the push token environment variable is set; if not, terminate the script
-if [[ -z "${!INPUT_PUSH_TOKEN}" ]]; then
-  echo "Set the ${INPUT_PUSH_TOKEN} env variable."
+# ─────────────────────────────────────────────────────────
+# Step summary helpers
+# ─────────────────────────────────────────────────────────
+SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
+run_timestamp="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo 'unknown')"
+
+summary_header() {
+  {
+    echo "## Shopify Multi-Store Merge — ${run_timestamp}"
+    echo ""
+    echo "| Field | Value |"
+    echo "|---|---|"
+    echo "| From branch | \`${input_from_branch}\` |"
+    echo "| To branch | \`${input_to_branch}\` |"
+    echo "| Config source | \`${input_config_source_branch}\` |"
+    echo "| Preserve locales | \`${input_preserve_locales}\` |"
+    echo "| Local settings data | \`${input_local_settings_data}\` |"
+  } >> "${SUMMARY}"
+}
+
+summary_result() {
+  local status="$1" commit="$2" files="$3"
+  {
+    echo "| Merge status | ${status} |"
+    [[ -n "${commit}" ]] && echo "| Commit | \`${commit}\` |"
+    [[ -n "${files}" ]]  && echo "| Files changed | ${files} |"
+    echo ""
+  } >> "${SUMMARY}"
+}
+
+summary_preserved() {
+  local config_src="$1"
+  {
+    echo "### Preserved files (from \`${config_src}\`)"
+    echo "- \`templates/*.json\` — merchant section layouts"
+    echo "- \`sections/*.json\` — section app-block state"
+    if [[ "${input_local_settings_data}" == "true" ]]; then
+      echo "- \`config/*.json\` — all theme config (including settings_data.json)"
+    else
+      echo "- \`config/settings_data.json\` — theme editor settings"
+    fi
+    [[ "${input_preserve_locales}" == "true" ]] && echo "- \`locales/*.json\` — store translations (opt-in)"
+  } >> "${SUMMARY}"
+}
+
+# ─────────────────────────────────────────────────────────
+# Startup log
+# ─────────────────────────────────────────────────────────
+echo ""
+echo "::group::Multi Store Merge Bot — configuration"
+echo "  from_branch          : ${input_from_branch}"
+echo "  to_branch            : ${input_to_branch}"
+echo "  config_source_branch : ${input_config_source_branch}"
+echo "  user_name            : ${input_user_name}"
+echo "  user_email           : ${input_user_email}"
+echo "  push_token           : ${input_push_token_var} (value hidden)"
+echo "  local_settings_data  : ${input_local_settings_data}"
+echo "  preserve_locales     : ${input_preserve_locales}"
+echo "::endgroup::"
+echo ""
+
+summary_header
+
+# ─────────────────────────────────────────────────────────
+# Validate push token
+# ─────────────────────────────────────────────────────────
+if [[ -z "${!input_push_token_var}" ]]; then
+  echo "::error::Push token env var '${input_push_token_var}' is not set. Aborting."
+  summary_result "❌ Failed — push token '\`${input_push_token_var}\`' not set" "" ""
   exit 1
 fi
 
-# Configure Git's global settings for the current user's name and email
-git config --global --add safe.directory "$GITHUB_WORKSPACE"
-git remote set-url origin https://x-access-token:${!INPUT_PUSH_TOKEN}@github.com/$GITHUB_REPOSITORY.git
-git config --global user.name "$INPUT_USER_NAME"
-git config --global user.email "$INPUT_USER_EMAIL"
+# ─────────────────────────────────────────────────────────
+# Branch naming convention check
+# ─────────────────────────────────────────────────────────
+if [[ ! "${input_to_branch}" =~ ^stores/[^/]+/.+$ ]]; then
+  echo "::warning::to_branch '${input_to_branch}' does not follow the recommended 'stores/{store-name}/{env}' convention."
+fi
 
-# Enable command tracing - each command is printed before it's executed
-set -o xtrace
+# ─────────────────────────────────────────────────────────
+# Git configuration
+# ─────────────────────────────────────────────────────────
+echo "::group::Git configuration"
+git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+git remote set-url origin "https://x-access-token:${!input_push_token_var}@github.com/${GITHUB_REPOSITORY}.git"
+git config --global user.name "${input_user_name}"
+git config --global user.email "${input_user_email}"
+git lfs install 2>/dev/null || true
+echo "  remote URL set (token hidden)"
+echo "  user.name  : ${input_user_name}"
+echo "  user.email : ${input_user_email}"
+echo "::endgroup::"
 
-# Fetch and checkout the 'from' branch
-git fetch origin ${input_from_branch}
-git checkout ${input_from_branch} && git pull origin ${input_from_branch} || git checkout -b ${input_from_branch} origin/${input_from_branch}
+# ─────────────────────────────────────────────────────────
+# Branch setup
+# ─────────────────────────────────────────────────────────
+echo "::group::Branch setup"
 
-# Fetch and checkout the 'to' branch
-git fetch origin ${input_to_branch}
-git checkout ${input_to_branch} && git pull origin ${input_to_branch} || git checkout -b ${input_to_branch} origin/${input_to_branch}
+git fetch origin "${input_from_branch}"
+git checkout "${input_from_branch}" 2>/dev/null && git pull origin "${input_from_branch}" \
+  || git checkout -b "${input_from_branch}" "origin/${input_from_branch}"
+echo "  Fetched and checked out: ${input_from_branch}"
 
-# Get the current commit hash
-commit_hash=$(git rev-parse --short HEAD)
+git fetch origin "${input_to_branch}"
+git checkout "${input_to_branch}" 2>/dev/null && git pull origin "${input_to_branch}" \
+  || git checkout -b "${input_to_branch}" "origin/${input_to_branch}"
+echo "  Fetched and checked out: ${input_to_branch}"
 
-# Check if merging is necessary, if not then terminate the script
-if git merge-base --is-ancestor ${input_from_branch} ${input_to_branch}; then
-  echo "No merge is necessary"
+# Snapshot the to_branch tip before merge (used to restore config files)
+to_branch_commit=$(git rev-parse HEAD)
+echo "  Pre-merge commit (${input_to_branch}): ${to_branch_commit}"
+
+# Fetch config source branch if it differs from to_branch
+if [[ "${input_config_source_branch}" != "${input_to_branch}" ]]; then
+  git fetch origin "${input_config_source_branch}"
+  echo "  Fetched config source: ${input_config_source_branch}"
+fi
+
+# Resolve the commit to pull JSON config from
+config_commit=$(git rev-parse "origin/${input_config_source_branch}")
+echo "  Config source commit: ${config_commit}"
+
+echo "::endgroup::"
+
+# ─────────────────────────────────────────────────────────
+# Merge check — skip if already up to date
+# ─────────────────────────────────────────────────────────
+if git merge-base --is-ancestor "${input_from_branch}" "${input_to_branch}"; then
+  echo "::notice::${input_from_branch} is already an ancestor of ${input_to_branch} — no merge needed."
+  summary_result "⏭️ Skipped — already up to date" "" ""
   exit 0
 fi
 
-# Disable command tracing
-set +o xtrace
-echo
-echo "  'Multi Store Merge Action' is trying to merge the '${input_from_branch}' branch ($(git log -1 --pretty=%H ${input_from_branch}))"
-echo "  into the '${input_to_branch}' branch ($(git log -1 --pretty=%H ${input_to_branch}))"
-echo
+echo ""
+echo "  Merging '${input_from_branch}' ($(git log -1 --pretty=%H "${input_from_branch}"))"
+echo "  into    '${input_to_branch}' ($(git log -1 --pretty=%H "${input_to_branch}"))"
+echo ""
 
-# Enable command tracing again
-set -o xtrace
+# ─────────────────────────────────────────────────────────
+# Merge (staged, not committed — conflicts auto-resolved to theirs)
+# ─────────────────────────────────────────────────────────
+echo "::group::Merge"
+git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories "${input_from_branch}"
+echo "  Merge staged (conflicts resolved to ${input_from_branch})"
+echo "::endgroup::"
 
-# Perform the merge operation without committing and favoring 'theirs' for conflicts
-git merge --no-edit --no-commit --strategy-option theirs --allow-unrelated-histories ${input_from_branch}
+# ─────────────────────────────────────────────────────────
+# Restore per-store Shopify config files from config_source_branch
+# ─────────────────────────────────────────────────────────
+echo "::group::Restoring Shopify config from '${input_config_source_branch}'"
 
-# Checkout specific files from the current commit, ignoring errors
-git checkout ${commit_hash} templates/\*.json 2>/dev/null || true
-git checkout ${commit_hash} sections/\*.json 2>/dev/null || true
-git checkout ${commit_hash} locales/\*.json 2>/dev/null || true
-git checkout ${commit_hash} config/settings_data.json 2>/dev/null || true
+git checkout "${config_commit}" -- "templates/" 2>/dev/null \
+  && echo "  Restored: templates/" || echo "  Skipped:  templates/ (not found)"
 
-# Display the status after checkout
-echo "Status Check: Post Checkout"
-git status
+git checkout "${config_commit}" -- "sections/" 2>/dev/null \
+  && echo "  Restored: sections/" || echo "  Skipped:  sections/ (not found)"
 
-# Check if there are any changes to commit
-if [[ -z $(git status -s) ]]; then
-  echo "No changes to commit, the working tree is clean"
-  echo "--- End Script --"
-  exit 0
+if [[ "${input_local_settings_data}" == "true" ]]; then
+  git checkout "${config_commit}" -- "config/" 2>/dev/null \
+    && echo "  Restored: config/ (all files)" || echo "  Skipped:  config/ (not found)"
 else
-  echo "Changes detected, committing changes"
-
-  # Add modified files to the git staging area, ignoring errors
-  git add templates/\*.json 2>/dev/null || true
-  git add sections/\*.json 2>/dev/null || true
-  git add locales/\*.json 2>/dev/null || true
-  git add config/settings_data.json 2>/dev/null || true
-
-  # Commit the changes with a message indicating the branches involved in the merge
-  git commit -m "GitHub Action: Merge ${input_from_branch} into ${input_to_branch}"
-
-  # Display the status after pushing changes
-  echo "Status Check: Post Push "
-
-  # Push the changes to the 'to' branch on the origin remote
-  git push --force origin ${input_to_branch}
+  git checkout "${config_commit}" -- "config/settings_data.json" 2>/dev/null \
+    && echo "  Restored: config/settings_data.json" || echo "  Skipped:  config/settings_data.json (not found)"
 fi
+
+if [[ "${input_preserve_locales}" == "true" ]]; then
+  git checkout "${config_commit}" -- "locales/" 2>/dev/null \
+    && echo "  Restored: locales/ (preserve_locales=true)" || echo "  Skipped:  locales/ (not found)"
+else
+  echo "  Skipped:  locales/ (preserve_locales=false — locales update from ${input_from_branch})"
+fi
+
+echo "::endgroup::"
+
+# ─────────────────────────────────────────────────────────
+# Commit and push
+# ─────────────────────────────────────────────────────────
+echo "::group::Commit and push"
+
+if [[ -z $(git status -s) ]]; then
+  echo "  No changes to commit — working tree is clean."
+  echo "::endgroup::"
+  summary_result "⏭️ Skipped — no changes after config restore" "" ""
+  exit 0
+fi
+
+git add -A
+
+files_changed=$(git diff --cached --name-only | wc -l | tr -d ' ')
+echo "  Files staged: ${files_changed}"
+
+commit_msg="GitHub Action: Merge ${input_from_branch} into ${input_to_branch} [config from ${input_config_source_branch}]"
+git commit -m "${commit_msg}"
+new_commit=$(git rev-parse --short HEAD)
+echo "  Committed: ${new_commit}"
+
+git push --force-with-lease origin "${input_to_branch}"
+echo "  Pushed to origin/${input_to_branch} (force-with-lease)"
+
+echo "::endgroup::"
+
+summary_result "✅ Merged successfully" "${new_commit}" "${files_changed}"
+summary_preserved "${input_config_source_branch}"
