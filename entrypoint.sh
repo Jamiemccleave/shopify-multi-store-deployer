@@ -42,8 +42,8 @@ summary_result() {
   local status="$1" commit="$2" files="$3"
   {
     echo "| Merge status | ${status} |"
-    [[ -n "${commit}" ]] && echo "| Commit | \`${commit}\` |"
-    [[ -n "${files}" ]]  && echo "| Files changed | ${files} |"
+    if [[ -n "${commit}" ]]; then echo "| Commit | \`${commit}\` |"; fi
+    if [[ -n "${files}" ]];  then echo "| Files changed | ${files} |"; fi
     echo ""
   } >> "${SUMMARY}"
 }
@@ -59,7 +59,7 @@ summary_preserved() {
     else
       echo "- \`config/settings_data.json\` — theme editor settings"
     fi
-    [[ "${input_preserve_locales}" == "true" ]] && echo "- \`locales/*.json\` — store translations (opt-in)"
+    if [[ "${input_preserve_locales}" == "true" ]]; then echo "- \`locales/*.json\` — store translations (opt-in)"; fi
   } >> "${SUMMARY}"
 }
 
