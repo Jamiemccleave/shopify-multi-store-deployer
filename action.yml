@@ -1,32 +1,56 @@
-name: "Multi Store Merge GitHub Action for Shopify 2.0"
-description: "GitHub Action designed to automate merging changes between branches, with a focus on Shopify theme configuration files."
+name: "Multi Store Merge GitHub Action for Shopify"
+description: "Automates merging between branches in Shopify theme repos, preserving per-store JSON configuration files."
 author: "Jamie McCleave"
 branding:
   icon: "git-merge"
   color: "orange"
+
 inputs:
   from_branch:
-    description: "Name of the branch to merge from"
+    description: "Branch to merge code from (e.g. master)"
     required: false
     default: "master"
   to_branch:
-    description: "Name of the branch to merge to"
+    description: "Branch to merge into (e.g. stores/uk/master)"
     required: false
     default: "develop"
   user_name:
-    description: "User name for git commits"
+    description: "Git commit author name"
     required: false
-    default: "GitHub Upmerge Action"
+    default: "GitHub Action : Multi Store Merge Bot"
   user_email:
-    description: "User email for git commits"
+    description: "Git commit author email"
     required: false
     default: "actions@github.com"
   push_token:
-    description: "Environment variable containing the token to use for push"
+    description: "Name of the environment variable holding the push token (default: GITHUB_TOKEN)"
     required: false
     default: "GITHUB_TOKEN"
+  local_settings_data:
+    description: "If true, preserve all config/*.json files from the store branch. If false (default), only config/settings_data.json is preserved."
+    required: false
+    default: "false"
+  preserve_locales:
+    description: "If true, preserve the store branch's locales/*.json. Default false — locales are developer-owned code and should update from the source branch."
+    required: false
+    default: "false"
+  config_source_branch:
+    description: "Branch to pull JSON config files from. Defaults to to_branch. Set this to a production branch when deploying to a staging branch (e.g. stores/uk/master)."
+    required: false
+    default: ""
+
 runs:
-  using: "docker"
-  image: "Dockerfile"
-  args:
-    - ${{ inputs.myInput }}
+  using: "composite"
+  steps:
+    - name: Run multi-store merge
+      shell: bash
+      env:
+        INPUT_FROM_BRANCH: ${{ inputs.from_branch }}
+        INPUT_TO_BRANCH: ${{ inputs.to_branch }}
+        INPUT_USER_NAME: ${{ inputs.user_name }}
+        INPUT_USER_EMAIL: ${{ inputs.user_email }}
+        INPUT_PUSH_TOKEN: ${{ inputs.push_token }}
+        INPUT_LOCAL_SETTINGS_DATA: ${{ inputs.local_settings_data }}
+        INPUT_PRESERVE_LOCALES: ${{ inputs.preserve_locales }}
+        INPUT_CONFIG_SOURCE_BRANCH: ${{ inputs.config_source_branch }}
+      run: bash "${{ github.action_path }}/entrypoint.sh"
