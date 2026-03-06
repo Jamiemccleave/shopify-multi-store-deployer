@@ -169,23 +169,33 @@ echo "::endgroup::"
 # ─────────────────────────────────────────────────────────
 echo "::group::Restoring Shopify config from '${input_config_source_branch}'"
 
-git checkout "${config_commit}" -- "templates/" 2>/dev/null \
-  && echo "  Restored: templates/" || echo "  Skipped:  templates/ (not found)"
+restore_json() {
+  local label="$1" dir="$2"
+  local -a files
+  mapfile -t files < <(git ls-tree -r --name-only "${config_commit}" -- "${dir}" 2>/dev/null | grep '\.json$')
+  if [[ ${#files[@]} -gt 0 ]]; then
+    git checkout "${config_commit}" -- "${files[@]}"
+    echo "  Restored: ${label} (${#files[@]} files)"
+  else
+    echo "  Skipped:  ${label} (none found in ${input_config_source_branch})"
+  fi
+}
 
-git checkout "${config_commit}" -- "sections/" 2>/dev/null \
-  && echo "  Restored: sections/" || echo "  Skipped:  sections/ (not found)"
+restore_json "templates/*.json" "templates/"
+restore_json "sections/*.json"  "sections/"
 
 if [[ "${input_local_settings_data}" == "true" ]]; then
-  git checkout "${config_commit}" -- "config/" 2>/dev/null \
-    && echo "  Restored: config/ (all files)" || echo "  Skipped:  config/ (not found)"
+  restore_json "config/*.json" "config/"
 else
-  git checkout "${config_commit}" -- "config/settings_data.json" 2>/dev/null \
-    && echo "  Restored: config/settings_data.json" || echo "  Skipped:  config/settings_data.json (not found)"
+  if git checkout "${config_commit}" -- "config/settings_data.json" 2>/dev/null; then
+    echo "  Restored: config/settings_data.json"
+  else
+    echo "  Skipped:  config/settings_data.json (not found in ${input_config_source_branch})"
+  fi
 fi
 
 if [[ "${input_preserve_locales}" == "true" ]]; then
-  git checkout "${config_commit}" -- "locales/" 2>/dev/null \
-    && echo "  Restored: locales/ (preserve_locales=true)" || echo "  Skipped:  locales/ (not found)"
+  restore_json "locales/*.json" "locales/"
 else
   echo "  Skipped:  locales/ (preserve_locales=false — locales update from ${input_from_branch})"
 fi
