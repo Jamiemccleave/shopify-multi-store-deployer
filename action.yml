@@ -38,6 +38,10 @@ inputs:
     description: "Branch to pull JSON config files from. Defaults to to_branch. Set this to a production branch when deploying to a staging branch (e.g. stores/uk/master)."
     required: false
     default: ""
+  create_pr:
+    description: "If true, push the merge result to a temporary branch and open a pull request into to_branch instead of pushing directly."
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -53,4 +57,5 @@ runs:
         INPUT_LOCAL_SETTINGS_DATA: ${{ inputs.local_settings_data }}
         INPUT_PRESERVE_LOCALES: ${{ inputs.preserve_locales }}
         INPUT_CONFIG_SOURCE_BRANCH: ${{ inputs.config_source_branch }}
+        INPUT_CREATE_PR: ${{ inputs.create_pr }}
       run: bash "${{ github.action_path }}/entrypoint.sh"

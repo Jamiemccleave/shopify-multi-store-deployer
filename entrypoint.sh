@@ -12,6 +12,7 @@ input_push_token_var="${INPUT_PUSH_TOKEN:-GITHUB_TOKEN}"
 input_local_settings_data="${INPUT_LOCAL_SETTINGS_DATA:-false}"
 input_preserve_locales="${INPUT_PRESERVE_LOCALES:-false}"
 input_config_source_branch="${INPUT_CONFIG_SOURCE_BRANCH:-}"
+input_create_pr="${INPUT_CREATE_PR:-false}"
 
 # Config source defaults to to_branch if not specified (preserves existing behaviour)
 if [[ -z "${input_config_source_branch}" ]]; then
@@ -76,6 +77,7 @@ echo "  user_email           : ${input_user_email}"
 echo "  push_token           : ${input_push_token_var} (value hidden)"
 echo "  local_settings_data  : ${input_local_settings_data}"
 echo "  preserve_locales     : ${input_preserve_locales}"
+echo "  create_pr            : ${input_create_pr}"
 echo "::endgroup::"
 echo ""
 
@@ -203,7 +205,7 @@ fi
 echo "::endgroup::"
 
 # ─────────────────────────────────────────────────────────
-# Commit and push
+# Commit and push (or open PR)
 # ─────────────────────────────────────────────────────────
 echo "::group::Commit and push"
 
@@ -224,10 +226,48 @@ git commit -m "${commit_msg}"
 new_commit=$(git rev-parse --short HEAD)
 echo "  Committed: ${new_commit}"
 
-git push --force-with-lease origin "${input_to_branch}"
-echo "  Pushed to origin/${input_to_branch} (force-with-lease)"
+if [[ "${input_create_pr}" == "true" ]]; then
+  # Push to a staging branch and open a PR instead of pushing directly
+  from_safe=$(echo "${input_from_branch}" | tr '/' '-')
+  to_safe=$(echo "${input_to_branch}" | tr '/' '-')
+  pr_branch="auto-merge/${from_safe}-into-${to_safe}-$(date +%s)"
 
-echo "::endgroup::"
+  git push origin "HEAD:${pr_branch}"
+  echo "  Pushed to origin/${pr_branch}"
 
-summary_result "✅ Merged successfully" "${new_commit}" "${files_changed}"
+  TOKEN="${!input_push_token_var}"
+  pr_response=$(curl -s -w "\n%{http_code}" \
+    -X POST \
+    -H "Authorization: token ${TOKEN}" \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls" \
+    -d "{
+      \"title\": \"${commit_msg}\",
+      \"body\": \"Automated PR created by Multi Store Merge Action.\\nMerging \`${input_from_branch}\` into \`${input_to_branch}\`.\",
+      \"head\": \"${pr_branch}\",
+      \"base\": \"${input_to_branch}\"
+    }")
+
+  pr_http_code=$(echo "${pr_response}" | tail -1)
+  pr_body=$(echo "${pr_response}" | head -n -1)
+
+  if [[ "${pr_http_code}" == "201" ]]; then
+    pr_url=$(echo "${pr_body}" | grep -o '"html_url":"[^"]*"' | head -1 | cut -d'"' -f4)
+    echo "  PR created: ${pr_url}"
+    echo "::endgroup::"
+    summary_result "✅ PR created" "${new_commit}" "${files_changed}"
+    echo "| Pull Request | [${pr_url}](${pr_url}) |" >> "${SUMMARY}"
+  else
+    echo "::error::Failed to create PR (HTTP ${pr_http_code}). Response: ${pr_body}"
+    echo "::endgroup::"
+    summary_result "❌ Failed — PR creation returned HTTP ${pr_http_code}" "${new_commit}" "${files_changed}"
+    exit 1
+  fi
+else
+  git push --force-with-lease origin "${input_to_branch}"
+  echo "  Pushed to origin/${input_to_branch} (force-with-lease)"
+  echo "::endgroup::"
+  summary_result "✅ Merged successfully" "${new_commit}" "${files_changed}"
+fi
+
 summary_preserved "${input_config_source_branch}"
