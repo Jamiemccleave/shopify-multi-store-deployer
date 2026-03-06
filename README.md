@@ -22,6 +22,18 @@ Shopify theme repos used across multiple stores share the same Liquid/CSS/JS cod
 
 ---
 
+## Try the Latest Version
+
+To test the current development build, point your workflow at the test branch:
+
+```yml
+uses: jamiemccleave/shopify-multi-store-deployer@claude/audit-shopify-integration-DBfPM
+```
+
+Stable releases use a version tag (e.g. `@v3`).
+
+---
+
 ## Quickstart
 
 Create `.github/workflows/multi-store-merge.yml` in your Shopify theme repository:
@@ -155,6 +167,7 @@ jobs:
           to_branch: "stores/${{ matrix.store }}/master"
           push_token: "PUSH_TOKEN"
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
 
   deploy-staging:
@@ -176,6 +189,7 @@ jobs:
           config_source_branch: "stores/${{ matrix.store }}/master"
           push_token: "PUSH_TOKEN"
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
 ```
 
@@ -186,19 +200,57 @@ jobs:
 Set `create_pr: true` to push the merge result to a temporary branch and open a pull request into `to_branch` rather than force-pushing. Useful for teams that require review before store branches are updated.
 
 ```yml
-- name: Merge master into UK store (via PR)
-  uses: jamiemccleave/shopify-multi-store-deployer@v3
-  with:
-    from_branch: "master"
-    to_branch: "stores/uk/master"
-    create_pr: "true"
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+name: "Multi Store Merge"
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'templates/*.json'
+      - 'config/*.json'
+      - 'locales/*.json'
+      - 'sections/*.json'
+
+jobs:
+  deploy-uk-via-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge master into UK store (via PR)
+        uses: jamiemccleave/shopify-multi-store-deployer@v3
+        with:
+          from_branch: "master"
+          to_branch: "stores/uk/master"
+          create_pr: "true"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 The PR branch is named `auto-merge/{from}-into-{to}-{timestamp}` and the PR URL is printed in the step log and job summary.
 
 > **Note:** The token must have `pull-requests: write` permission to create PRs. `GITHUB_TOKEN` has this by default; if using a PAT ensure it is granted.
+
+---
+
+## Per-Store Config Preservation
+
+By default only `config/settings_data.json` is preserved from the store branch. If a store has custom translations or you want to keep all `config/*.json` files intact, use the optional inputs:
+
+```yml
+- name: Merge master into UK store (preserve all config + locales)
+  uses: jamiemccleave/shopify-multi-store-deployer@v3
+  with:
+    from_branch: "master"
+    to_branch: "stores/uk/master"
+    local_settings_data: "true"   # preserve all config/*.json, not just settings_data.json
+    preserve_locales: "true"      # preserve locales/*.json (custom store translations)
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
 ---
 
