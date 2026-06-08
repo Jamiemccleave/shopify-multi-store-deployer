@@ -36,9 +36,14 @@ set -o xtrace
 git fetch origin ${input_from_branch}
 git checkout ${input_from_branch} && git pull origin ${input_from_branch} || git checkout -b ${input_from_branch} origin/${input_from_branch}
 
-# Fetch and checkout the 'to' branch
-git fetch origin ${input_to_branch}
-git checkout ${input_to_branch} && git pull origin ${input_to_branch} || git checkout -b ${input_to_branch} origin/${input_to_branch}
+# Fetch and checkout the 'to' branch (branch may not exist yet for new stores)
+git fetch origin ${input_to_branch} 2>/dev/null || true
+if git rev-parse --verify "origin/${input_to_branch}" > /dev/null 2>&1; then
+  git checkout ${input_to_branch} 2>/dev/null || git checkout -b ${input_to_branch} origin/${input_to_branch}
+  git pull origin ${input_to_branch}
+else
+  git checkout -b ${input_to_branch}
+fi
 
 # Get the current commit hash
 commit_hash=$(git rev-parse --short HEAD)
