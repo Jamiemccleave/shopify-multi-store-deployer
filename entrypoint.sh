@@ -93,5 +93,5 @@ else
   echo "Status Check: Post Push "
 
   # Push the changes to the 'to' branch on the origin remote
-  git push --force origin ${input_to_branch}
+  git push origin ${input_to_branch}
 fi
