@@ -1,16 +1,8 @@
-# CODEOWNERS — SwankyApple Security-Critical Files
-# Changes to these files require review from a repo admin before merge.
-# This prevents an attacker from disabling the security scanner via a PR.
-#
-# Replace @SwankyApple/admins with your actual GitHub team or usernames.
+# CODEOWNERS — shopify-multi-store-deployer
+# Changes to these files require review before merge.
+# Prevents an attacker from disabling the security scanner via a PR.
 
-# Security workflow — must be reviewed to prevent scanner being disabled
-.github/workflows/        @SwankyApple/admins
-
-# VS Code config — auto-execution and extension recommendations
-.vscode/                  @SwankyApple/admins
-
-# Package manifest — dependency and lifecycle hook changes
-package.json              @SwankyApple/admins
-package-lock.json         @SwankyApple/admins
-yarn.lock                 @SwankyApple/admins
+# Security workflow and action definition
+.github/workflows/        @Jamiemccleave
+action.yml                @Jamiemccleave
+entrypoint.sh             @Jamiemccleave

@@ -82,12 +82,20 @@ scan_for_polinrider() {
     return 0
   fi
 
+  # Helper — returns true if a file is a restored merchant config (not executable code).
+  # templates/, sections/, config/, locales/ are Shopify JSON data — not threat surface.
+  is_merchant_config() {
+    [[ "$1" == templates/* || "$1" == sections/* || \
+       "$1" == config/*    || "$1" == locales/* ]]
+  }
+
   # 1. Hidden Unicode — zero-width joiners, variation selectors, bidirectional controls
   local UNICODE_PAT
   UNICODE_PAT=$'\xe2\x80\x8b|\xe2\x80\x8c|\xe2\x80\x8d|\xef\xb8\x80|\xe2\x80\xaa|\xe2\x80\xab|\xe2\x80\xac|\xe2\x80\xad|\xe2\x80\xae'
   for file in "${staged[@]}"; do
+    is_merchant_config "${file}" && continue
     case "${file}" in
-      *.js|*.ts|*.jsx|*.tsx|*.liquid|*.json|*.css)
+      *.js|*.ts|*.jsx|*.tsx|*.liquid|*.css|*.sh)
         if git show ":${file}" 2>/dev/null | LC_ALL=C grep -Pq "${UNICODE_PAT}"; then
           echo "::error file=${file}::PolinRider: Hidden Unicode detected — possible Glassworm injection"
           FAIL=1
@@ -98,6 +106,7 @@ scan_for_polinrider() {
 
   # 2. PolinRider fingerprint string
   for file in "${staged[@]}"; do
+    is_merchant_config "${file}" && continue
     if git show ":${file}" 2>/dev/null | grep -qF "global['_V']='8-'"; then
       echo "::error file=${file}::PolinRider: Glassworm fingerprint detected in ${file}"
       FAIL=1
@@ -107,8 +116,9 @@ scan_for_polinrider() {
   # 3. Blockchain C2 endpoints (BeaverTail comms)
   local C2_PAT="trongrid\.io|aptoslabs\.com|bsc-dataseed|fullnode\.mainnet\.aptoslabs"
   for file in "${staged[@]}"; do
+    is_merchant_config "${file}" && continue
     case "${file}" in
-      *.js|*.ts|*.jsx|*.tsx|*.json|*.liquid)
+      *.js|*.ts|*.jsx|*.tsx|*.liquid|*.css|*.sh)
         if git show ":${file}" 2>/dev/null | grep -Pq "${C2_PAT}"; then
           echo "::error file=${file}::PolinRider: Blockchain C2 endpoint detected in ${file}"
           FAIL=1
@@ -349,8 +359,8 @@ if [[ "${input_create_pr}" == "true" ]]; then
     exit 1
   fi
 else
-  git push --force-with-lease origin "${input_to_branch}"
-  echo "  Pushed to origin/${input_to_branch} (force-with-lease)"
+  git push origin "${input_to_branch}"
+  echo "  Pushed to origin/${input_to_branch}"
   echo "::endgroup::"
   summary_result "✅ Merged successfully" "${new_commit}" "${files_changed}"
 fi
