@@ -349,8 +349,8 @@ if [[ "${input_create_pr}" == "true" ]]; then
     exit 1
   fi
 else
-  git push --force-with-lease origin "${input_to_branch}"
-  echo "  Pushed to origin/${input_to_branch} (force-with-lease)"
+  git push origin "${input_to_branch}"
+  echo "  Pushed to origin/${input_to_branch}"
   echo "::endgroup::"
   summary_result "✅ Merged successfully" "${new_commit}" "${files_changed}"
 fi
