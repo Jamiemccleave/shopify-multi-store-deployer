@@ -1,0 +1,31 @@
+version: 2
+
+updates:
+  # Keep GitHub Actions pinned to latest secure SHAs
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "security"
+      - "dependencies"
+
+  # Keep npm dependencies patched for CVEs
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "security"
+      - "dependencies"
+    ignore:
+      # Only auto-update patch versions — minor/major reviewed manually
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

@@ -1,0 +1,276 @@
+name: Supply Chain Security (PolinRider Guard)
+
+on:
+  push:
+    branches: ["main", "master", "develop", "staging", "production"]
+  pull_request:
+    branches: ["main", "master", "develop", "staging", "production"]
+
+permissions:
+  contents: read  # global minimum — individual jobs add only what they need
+
+jobs:
+  # ─── 1. PolinRider full suite ──────────────────────────────────────────────
+  polinrider-scan:
+    name: PolinRider Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Pinned to commit SHA — prevents tag-hijacking supply chain attack on this scanner
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0  # required — git date analysis needs full history
+
+      - name: Run PolinRider Guard
+        id: guard
+        uses: richkazz/Operation-PolinRider@041ecff053e9a31dfdfc02e485e395220b77bd76 # v0.1.4
+        with:
+          path: "."
+          no-git: "false"
+          json: "true"
+
+      - name: Fail on findings
+        if: steps.guard.outputs.has-findings == 'true'
+        run: |
+          echo "::error::PolinRider detected ${{ steps.guard.outputs.findings-count }} issue(s) — highest severity: ${{ steps.guard.outputs.highest-severity }}"
+          exit 1
+
+  # ─── 2. Hidden Unicode in source files ────────────────────────────────────
+  unicode-scan:
+    name: Hidden Unicode Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Scan JS/TS/Liquid/PHP for invisible characters
+        run: |
+          FOUND=0
+          # Zero-width joiner, zero-width non-joiner, zero-width space,
+          # variation selectors U+FE00-FE0F, BOM, bidirectional controls
+          PATTERN=$'\xe2\x80\x8b|\xe2\x80\x8c|\xe2\x80\x8d|\xef\xb8\x80|\xef\xbb\xbf|\xe2\x80\xaa|\xe2\x80\xab|\xe2\x80\xac|\xe2\x80\xad|\xe2\x80\xae'
+          while IFS= read -r -d '' file; do
+            if LC_ALL=C grep -Pq "$PATTERN" "$file" 2>/dev/null; then
+              echo "::error file=$file::Hidden Unicode characters detected in $file"
+              FOUND=1
+            fi
+          done < <(find . \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            \( -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" \
+               -o -name "*.liquid" -o -name "*.php" -o -name "*.json" \) \
+            -print0)
+          if [ "$FOUND" -eq 1 ]; then exit 1; fi
+          echo "No hidden Unicode found."
+
+  # ─── 3. Binary-extension masquerade ──────────────────────────────────────
+  masquerade-scan:
+    name: Binary Masquerade Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check font/image files for embedded scripts
+        run: |
+          FOUND=0
+          while IFS= read -r -d '' file; do
+            # Shopify themes store all legitimate fonts/images in assets/ — skip it.
+            # PolinRider uses public/fonts/ not assets/, so this exclusion is safe.
+            [[ "$file" == */assets/* ]] && continue
+
+            MIME=$(file --mime-type -b "$file")
+            case "$MIME" in
+              text/x-*|text/javascript|application/javascript|application/x-sh)
+                echo "::error file=$file::Masquerade detected — $file has extension $(basename "$file" | sed 's/.*\.//') but content is $MIME"
+                echo "::error file=$file::If this is a legitimate file outside assets/, move it to assets/ or contact security."
+                FOUND=1
+                ;;
+            esac
+          done < <(find . \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            \( -name "*.woff" -o -name "*.woff2" -o -name "*.ttf" \
+               -o -name "*.otf" -o -name "*.eot" -o -name "*.ico" \
+               -o -name "*.png" -o -name "*.jpg" -o -name "*.gif" \
+               -o -name "*.wasm" \) \
+            -print0)
+          if [ "$FOUND" -eq 1 ]; then exit 1; fi
+          echo "No masquerading files found."
+
+  # ─── 4. VS Code config checks ────────────────────────────────────────────
+  vscode-scan:
+    name: VS Code Config Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check .vscode/tasks.json for auto-execution patterns
+        run: |
+          if [ ! -f .vscode/tasks.json ]; then
+            echo "No .vscode/tasks.json — skipping."
+          else
+            FOUND=0
+            if grep -q "folderOpen" .vscode/tasks.json; then
+              echo "::error file=.vscode/tasks.json::tasks.json contains runOn:folderOpen — executes on repo open"
+              FOUND=1
+            fi
+            if grep -q '"hide"[[:space:]]*:[[:space:]]*true' .vscode/tasks.json; then
+              echo "::error file=.vscode/tasks.json::tasks.json contains hidden:true task"
+              FOUND=1
+            fi
+            if grep -qE 'node[[:space:]].*\.(woff2?|ttf|otf|ico|wasm|png|jpg)' .vscode/tasks.json; then
+              echo "::error file=.vscode/tasks.json::tasks.json runs node against a binary-extension file — classic payload pattern"
+              FOUND=1
+            fi
+            if [ "$FOUND" -eq 1 ]; then exit 1; fi
+            echo "VS Code tasks.json looks clean."
+          fi
+
+      - name: Check .vscode/extensions.json for suspicious recommended extensions
+        run: |
+          if [ ! -f .vscode/extensions.json ]; then
+            echo "No .vscode/extensions.json — skipping."
+            exit 0
+          fi
+          FOUND=0
+          # Flag extensions not from a known safe publisher namespace
+          # Known-safe Shopify publisher IDs
+          SAFE_PUBLISHERS="shopify\.|esbenp\.|dbaeumer\.|stylelint\.|ms-vscode\.|github\.|eamodio\.|formulahendry\."
+          while IFS= read -r ext; do
+            ext=$(echo "$ext" | tr -d '",' | xargs)
+            [ -z "$ext" ] && continue
+            if ! echo "$ext" | grep -qiE "$SAFE_PUBLISHERS"; then
+              echo "::warning file=.vscode/extensions.json::Unvetted extension recommended: $ext — verify publisher before installing"
+            fi
+          done < <(jq -r '.recommendations[]?' .vscode/extensions.json 2>/dev/null)
+          # Flag extensions with suspicious capability signals in any extension manifest committed to repo
+          find .vscode -name "package.json" -not -path "*/node_modules/*" | while read -r manifest; do
+            if grep -qE '"child_process"|"eval"|extensionDependencies' "$manifest" 2>/dev/null; then
+              echo "::error file=$manifest::Extension manifest references child_process, eval, or extensionDependencies — review carefully"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then exit 1; fi
+          echo "VS Code extensions.json check complete."
+
+  # ─── 5. npm lifecycle hook audit ──────────────────────────────────────────
+  npm-audit:
+    name: npm Package Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Check for known malicious packages
+        run: |
+          if [ ! -f package.json ]; then exit 0; fi
+          MALICIOUS=(
+            "@aifabrix/miso-client"
+            "@iflow-mcp/watercrawl-watercrawl-mcp"
+            "@usebioerhold8733"
+          )
+          FOUND=0
+          for pkg in "${MALICIOUS[@]}"; do
+            if grep -rq "\"$pkg" package.json package-lock.json yarn.lock 2>/dev/null; then
+              echo "::error::Known PolinRider-associated package detected: $pkg"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then exit 1; fi
+
+      - name: Flag postinstall scripts for review
+        run: |
+          if [ ! -f package.json ]; then exit 0; fi
+          if jq -e '.scripts.postinstall // .scripts.preinstall // .scripts.install' package.json > /dev/null 2>&1; then
+            HOOKS=$(jq -r '(.scripts.postinstall // ""), (.scripts.preinstall // ""), (.scripts.install // "")' package.json | grep -v '^$')
+            echo "::warning::Lifecycle hooks detected — verify these are intentional before enabling scripts:"
+            echo "$HOOKS"
+          fi
+
+      - name: Check for blockchain C2 endpoints in source
+        run: |
+          FOUND=0
+          C2_PATTERNS="trongrid\.io|aptoslabs\.com|bsc-dataseed|mainnet\.aptos|fullnode\.mainnet\.aptoslabs"
+          while IFS= read -r -d '' file; do
+            if grep -Pq "$C2_PATTERNS" "$file" 2>/dev/null; then
+              echo "::error file=$file::Blockchain C2 endpoint pattern detected in $file"
+              FOUND=1
+            fi
+          done < <(find . \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" \
+            -print0)
+          if [ "$FOUND" -eq 1 ]; then exit 1; fi
+          echo "No C2 endpoint patterns found."
+
+  # ─── 6. Commit signature verification ─────────────────────────────────────
+  verify-signatures:
+    name: Commit Signature Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify all PR commits are signed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Checking commit signatures for PR #$PR_NUMBER..."
+          UNSIGNED=""
+          PAGE=1
+          while true; do
+            RESPONSE=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$REPO/pulls/$PR_NUMBER/commits?per_page=100&page=$PAGE")
+            COUNT=$(echo "$RESPONSE" | jq 'length')
+            [ "$COUNT" -eq 0 ] && break
+            while IFS= read -r line; do
+              SHA=$(echo "$line" | cut -d'|' -f1)
+              VERIFIED=$(echo "$line" | cut -d'|' -f2)
+              REASON=$(echo "$line" | cut -d'|' -f3)
+              AUTHOR_EMAIL=$(echo "$line" | cut -d'|' -f4)
+              # Skip known GitHub Actions bot commits
+              if [[ "$AUTHOR_EMAIL" == "actions@github.com" || "$AUTHOR_EMAIL" == *"noreply@github.com" ]]; then
+                echo "::notice::Skipping bot commit $SHA ($AUTHOR_EMAIL)"
+                continue
+              fi
+              if [ "$VERIFIED" != "true" ]; then
+                echo "::error::Unsigned commit: $SHA by $AUTHOR_EMAIL (reason: $REASON)"
+                UNSIGNED="$UNSIGNED $SHA"
+              fi
+            done < <(echo "$RESPONSE" | jq -r '.[] | "\(.sha[0:7])|\(.commit.verification.verified)|\(.commit.verification.reason)|\(.commit.author.email)"')
+            PAGE=$((PAGE + 1))
+          done
+          if [ -n "$UNSIGNED" ]; then
+            echo ""
+            echo "─────────────────────────────────────────────────────────"
+            echo "UNSIGNED COMMITS DETECTED"
+            echo "─────────────────────────────────────────────────────────"
+            echo "All commits from human authors must be signed."
+            echo ""
+            echo "New to signing? Run the setup script on your machine:"
+            echo "  bash ~/Desktop/swankyapple-security/git-hooks/setup-signing.sh"
+            echo ""
+            echo "Then add your signing key to GitHub:"
+            echo "  github.com → Settings → SSH and GPG keys → New SSH key → Key type: Signing Key"
+            echo ""
+            echo "Full guide: https://docs.github.com/en/authentication/managing-commit-signature-verification"
+            echo "─────────────────────────────────────────────────────────"
+            exit 1
+          fi
+          echo "All commits are signed and verified."

@@ -65,6 +65,89 @@ summary_preserved() {
 }
 
 # ─────────────────────────────────────────────────────────
+# PolinRider supply-chain scan
+# Scans all staged files before committing. Aborts if any
+# Operation PolinRider IOCs are detected in the merged content.
+# ─────────────────────────────────────────────────────────
+scan_for_polinrider() {
+  echo "::group::PolinRider security scan"
+  local FAIL=0
+  local -a staged
+  mapfile -t staged < <(git diff --cached --name-only 2>/dev/null)
+
+  if [[ ${#staged[@]} -eq 0 ]]; then
+    echo "  No staged files to scan."
+    echo "::endgroup::"
+    echo "| Security Scan | ✅ Clean (no staged files) |" >> "${SUMMARY}"
+    return 0
+  fi
+
+  # 1. Hidden Unicode — zero-width joiners, variation selectors, bidirectional controls
+  local UNICODE_PAT
+  UNICODE_PAT=$'\xe2\x80\x8b|\xe2\x80\x8c|\xe2\x80\x8d|\xef\xb8\x80|\xe2\x80\xaa|\xe2\x80\xab|\xe2\x80\xac|\xe2\x80\xad|\xe2\x80\xae'
+  for file in "${staged[@]}"; do
+    case "${file}" in
+      *.js|*.ts|*.jsx|*.tsx|*.liquid|*.json|*.css)
+        if git show ":${file}" 2>/dev/null | LC_ALL=C grep -Pq "${UNICODE_PAT}"; then
+          echo "::error file=${file}::PolinRider: Hidden Unicode detected — possible Glassworm injection"
+          FAIL=1
+        fi
+        ;;
+    esac
+  done
+
+  # 2. PolinRider fingerprint string
+  for file in "${staged[@]}"; do
+    if git show ":${file}" 2>/dev/null | grep -qF "global['_V']='8-'"; then
+      echo "::error file=${file}::PolinRider: Glassworm fingerprint detected in ${file}"
+      FAIL=1
+    fi
+  done
+
+  # 3. Blockchain C2 endpoints (BeaverTail comms)
+  local C2_PAT="trongrid\.io|aptoslabs\.com|bsc-dataseed|fullnode\.mainnet\.aptoslabs"
+  for file in "${staged[@]}"; do
+    case "${file}" in
+      *.js|*.ts|*.jsx|*.tsx|*.json|*.liquid)
+        if git show ":${file}" 2>/dev/null | grep -Pq "${C2_PAT}"; then
+          echo "::error file=${file}::PolinRider: Blockchain C2 endpoint detected in ${file}"
+          FAIL=1
+        fi
+        ;;
+    esac
+  done
+
+  # 4. Binary-extension masquerade — skip assets/ (legitimate Shopify fonts live there)
+  for file in "${staged[@]}"; do
+    case "${file}" in
+      *.woff|*.woff2|*.ttf|*.otf|*.eot|*.ico|*.wasm)
+        [[ "${file}" == */assets/* ]] && continue
+        local MIME
+        MIME=$(git show ":${file}" 2>/dev/null | file --mime-type -b - 2>/dev/null || echo "unknown")
+        case "${MIME}" in
+          text/*|application/javascript|application/x-sh)
+            echo "::error file=${file}::PolinRider: Masquerade detected — ${file} contains ${MIME} content"
+            FAIL=1
+            ;;
+        esac
+        ;;
+    esac
+  done
+
+  echo "::endgroup::"
+
+  if [[ "${FAIL}" -eq 1 ]]; then
+    echo "::error::PolinRider scan FAILED — merge aborted. Review flagged files before proceeding."
+    echo "| Security Scan | ❌ Failed — PolinRider IOCs detected in staged files |" >> "${SUMMARY}"
+    return 1
+  fi
+
+  echo "  PolinRider scan: clean (${#staged[@]} files checked)"
+  echo "| Security Scan | ✅ Clean — ${#staged[@]} files scanned |" >> "${SUMMARY}"
+  return 0
+}
+
+# ─────────────────────────────────────────────────────────
 # Startup log
 # ─────────────────────────────────────────────────────────
 echo ""
@@ -220,6 +303,8 @@ git add -A
 
 files_changed=$(git diff --cached --name-only | wc -l | tr -d ' ')
 echo "  Files staged: ${files_changed}"
+
+scan_for_polinrider || exit 1
 
 commit_msg="GitHub Action: Merge ${input_from_branch} into ${input_to_branch} [config from ${input_config_source_branch}]"
 git commit -m "${commit_msg}"
